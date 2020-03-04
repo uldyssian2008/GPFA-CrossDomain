@@ -57,7 +57,7 @@ for t = 1:optTime
 end
 
 % get important modeling statistics to save repeated computations
-[barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d);
+[barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T);
 
 Ytest = dat(1);
 Ytest = Ytest.spikes;
@@ -69,9 +69,11 @@ for i = 1:T1/binwidth
 end
 Ytest = Ybar;
 
-[traj,preError] = testGP(Ytest,C,scale,R,d);
+[traj,preError] = testGP(Ytest,Bj,Bjc,bard,Sigma,barR);
+
 
 % visualization
+
 figure
 subplot(1,6,1);
 hold on 
@@ -79,8 +81,13 @@ scatter(1:T,Y(1,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,1,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
 hold on
-plot(traj(:,1),'DisplayName','GP-approx.')
+plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
 xlabel('Time (10ms)')
 ylabel('Spike')
 
@@ -90,8 +97,13 @@ scatter(1:T,Y(2,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,2,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
 hold on
-plot(traj(:,2),'DisplayName','GP-approx.')
+plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
 xlabel('Time (10ms)')
 ylabel('Spike')
 
@@ -101,8 +113,13 @@ scatter(1:T,Y(3,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,3,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
 hold on
-plot(traj(:,3),'DisplayName','GP-approx.')
+plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
 xlabel('Time (10ms)')
 ylabel('Spike')
 
@@ -112,8 +129,13 @@ scatter(1:T,Y(4,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,4,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
 hold on
-plot(traj(:,4),'DisplayName','GP-approx.')
+plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
 xlabel('Time (10ms)')
 ylabel('Spike')
 
@@ -123,8 +145,13 @@ scatter(1:T,Y(5,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,5,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
 hold on
-plot(traj(:,5),'DisplayName','GP-approx.')
+plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
 xlabel('Time (10ms)')
 ylabel('Spike')
 
@@ -134,8 +161,13 @@ scatter(1:T,Y(6,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,6,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
 hold on
-plot(traj(:,6),'DisplayName','GP-approx.')
+plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
 xlabel('Time (10ms)')
 ylabel('Spike')
 
