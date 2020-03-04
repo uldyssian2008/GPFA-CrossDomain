@@ -1,9 +1,6 @@
-function [Mean,Cov,Cov2] = EMexp(C,scale,R,d,Y)
-q = size(Y,1);
-T = size(Y,2);
-p = size(C,2);
+function [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d)
+
 barC = kron(eye(T),C);
-bary = reshape(Y,[q*T,1]);
 barR = kron(eye(T),R);
 bard = kron(ones(T,1),d);
 barK = [];
@@ -25,18 +22,26 @@ for i = 1:T
     end
     barK = [barK;tempK];
 end
-Mean = barK*barC'*(barC*barK*barC' + barR)^(-1)*(bary - bard);
-CovT = barK - barK*barC'*(barC*barK*barC' + barR)^(-1)*barC*barK + Mean*Mean';
-Mean = reshape(Mean,[p,T]);
-for i = 1:T
-    Cov{i} = CovT((i-1)*p + 1:i*p,(i-1)*p + 1:i*p);
+
+
+Bj = {};
+Ide = eye(T*q);
+for i = 1:q
+    Btemp = [];
+    for j = 1:T
+        Btemp = [Btemp;Ide(:,i + (j-1) * q)'];
+    end
+    Bj{i} = Btemp;
 end
-for i = 1:p
-   ZZ = [];
-   for l1 = 1:T
-       for l2 = 1:T
-            ZZ(l1,l2) = CovT((l1-1) * p + i,(l2-1) * p + i);
-       end
-   end
-   Cov2{i} = ZZ;
+Bjc = {};
+for i = 1:q
+    BcTemp = [];
+    for j = 1:q
+        if i ~= j
+            BcTemp = [BcTemp;Bj{j}];
+        end
+    end
+    Bjc{i} = BcTemp;
 end
+
+Sigma = barC * barK * barC' + barR;
