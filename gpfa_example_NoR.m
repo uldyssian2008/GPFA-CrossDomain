@@ -5,7 +5,9 @@ T = size(Y,2);
 q = size(Y,1);
 
 % latent dimension
-p = 3;
+p = 10;
+% noise power
+np = 0.05; 
 % bin spike coumt
 binwidth = 20;
 Ybar = [];
@@ -18,17 +20,17 @@ Y = Ybar;
 bary = reshape(Y,[q*T,1]);
 
 % optimize hyperparameters
-optTime = 50; % number of EM iteration
-C = randn(q,p); scale = abs(randn(p,1)) + 0.1; R = diag(abs(randn(q,1)) + 0.1); d = randn()
+optTime = 200; % number of EM iteration
+C = randn(q,p); scale = abs(randn(p,1)) + 10^(-1); R = diag(0.01 * rand(q,1)); d = randn(q,1); % parameter initialization
+barR = kron(eye(T),R);
 
 for t = 1:optTime   
-    [Mean,Cov] = Emexp(C,scale,R,d,Y);
-    [C,scale,R,d] = EMmax(Mean,Cov);
+    [Mean,Cov,Cov2] = EMexp(C,scale,R,d,Y);
+    [C,scale,d] = EMmaxNoR(Mean,Cov,Cov2,Y);
     
     % calculate loglikelihood
     bard = kron(ones(T,1),d);
     barC = kron(eye(T),C);
-    barR = korn(eye(T),R);
     barK = [];
     for i = 1:T
         tempK = [];
@@ -36,19 +38,20 @@ for t = 1:optTime
             v = [];
             if i == j
                 for k = 1:p
-                    v = [v;(1-10^(-3))*exp(-(i-j)/2/scale(k)^2)+10^(-3)];
+                    v = [v;(1-10^(-3))*exp(-(i-j)^2/2/scale(k)^2)+10^(-3)];
                 end
                 tempK = [tempK,diag(v)];
             else
                 for k = 1:p
-                    v = [v;(1-10^(-3))*exp(-(i-j)/2/scale(k)^2)];
+                    v = [v;(1-10^(-3))*exp(-(i-j)^2/2/scale(k)^2)];
                 end
                 tempK = [tempK,diag(v)];
             end
         end
         barK = [barK;tempK];
-    end       
-    covK = barC * barK * barC' + barR;
+    end
+    %covK = barC * barK * barC' + barR;
+    covK = barC * barK * barC' + barR + np^2 * eye(q*T);
     loglikelihood = -1/2 * (bary - bard)' * covK^(-1) * (bary - bard) - 1/2 * (q * T * log(2*pi) + log(det(covK)));
     disp(['Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ';']);
 end
