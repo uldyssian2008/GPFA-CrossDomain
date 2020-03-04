@@ -1,5 +1,7 @@
-function [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d)
+function [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T)
 
+p = size(C,2);
+q = size(C,1);
 barC = kron(eye(T),C);
 barR = kron(eye(T),R);
 bard = kron(ones(T,1),d);

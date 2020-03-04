@@ -7,8 +7,7 @@ bary = reshape(Ytest,[q*T,1]);
 
 traj = [];
 for i = 1:q
-    %traj = [traj , Bj{i} * bard + (Bj{i} * Sigma * Bjc{i}') * (Bjc{i} * Sigma * Bjc{i}')^(-1) * (Bjc{i} * bary - Bjc{i} * bard)];
-    traj = [traj , Bj{i} * bard + (Bj{i} * (Sigma - barR) * Bjc{i}') * (Bjc{i} * Sigma * Bjc{i}')^(-1) * (Bjc{i} * bary - Bjc{i} * bard)];
+    traj = [traj , Bj{i} * bard + (Bj{i} * Sigma * Bjc{i}') * (Bjc{i} * Sigma * Bjc{i}')^(-1) * (Bjc{i} * bary - Bjc{i} * bard)];
 end
     
 preError = 0;
