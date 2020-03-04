@@ -56,8 +56,8 @@ for t = 1:optTime
     disp(['Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ';']);
 end
 
-% get important modeling statistics to save repeated computations
-[barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d);
+% get important statistics to save repeated computations
+[barC,barR,bard,bary,barK,Bj,Bjc,Sigma] = ImpStat(Y,C,scale,R,d);
 
 Ytest = dat(1);
 Ytest = Ytest.spikes;
