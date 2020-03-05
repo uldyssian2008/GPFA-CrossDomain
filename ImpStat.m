@@ -10,17 +10,10 @@ for i = 1:T
     tempK = [];
     for j = 1:T
         v = [];
-        if i == j
-            for k = 1:p
-                v = [v;(1-10^(-3))*exp(-(i-j)^2/2/scale(k)^2)+10^(-3)];
-            end
-            tempK = [tempK,diag(v)];
-        else
-            for k = 1:p
-                v = [v;(1-10^(-3))*exp(-(i-j)^2/2/scale(k)^2)];
-            end
-            tempK = [tempK,diag(v)];
+        for k = 1:p
+            v = [v;kernelEva(i,j,scale(k))];
         end
+        tempK = [tempK,diag(v)];
     end
     barK = [barK;tempK];
 end

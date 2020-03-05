@@ -1,32 +1,61 @@
+%%%%%%%%%%%% GPFA Implementation %%%%%%%%%%%%%%%
+
+%%% Caution: change kernelEva & kernelDer simultaneously %%%
 load('mat_sample/sample_dat');
-Y = dat(1);
-Y = Y.spikes;
-T = size(Y,2);
-q = size(Y,1);
+dataNum = size(dat,2);
+TrainNum = 30;
+TestNum = dataNum - TrainNum;
+Y = dat(1:TrainNum);
+Ytes = dat(TrainNum + 1:end);
+T = size(Y(1).spikes,2);
+q = size(Y(1).spikes,1);
 
 % latent dimension
 p = 10;
 % noise power
-np = 0.05; 
+np = 0.1; 
 % bin spike coumt
+% Train set/Test set
+YTrain = {};
+YTest = {};
 binwidth = 10;
-Ybar = [];
-for i = 1:T/binwidth
-    z = sum(Y(:,(i-1) * binwidth + 1:i * binwidth ),2);
-    Ybar = [Ybar,z];
+for d = 1:TrainNum
+    Ybar = [];
+    for i = 1:T/binwidth
+        z = sum(Y(d).spikes(:,(i-1) * binwidth + 1:i * binwidth ),2);
+        Ybar = [Ybar,z];
+    end
+    YTrain{d} = Ybar;
+end
+for d = 1:TestNum
+    Ybar = [];
+    for i = 1:T/binwidth
+        z = sum(Ytes(d).spikes(:,(i-1) * binwidth + 1:i * binwidth ),2);
+        Ybar = [Ybar,z];
+    end
+    YTest{d} = Ybar;
 end
 T = T/binwidth;
-Y = Ybar;
-bary = reshape(Y,[q*T,1]);
+
+baryTrain = [];
+for l = 1:TrainNum
+    baryTrain = [baryTrain,reshape(YTrain{l},[q*T,1])];
+end
+baryTest = [];
+for l = 1:TestNum
+    baryTest = [baryTest,reshape(YTest{l},[q*T,1])];
+end
+
+rng(0,'twister'); % For reproducibility
 
 % optimize hyperparameters
 optTime = 200; % number of EM iteration
-C = randn(q,p); scale = abs(randn(p,1)) + 10^(-1); R = diag(0.01 * ones(q,1)); d = randn(q,1); % parameter initialization
+C = randn(q,p); scale = abs(randn(p,1)) + 10^(-1); R = diag(np^2 * ones(q,1)); d = randn(q,1); % parameter initialization
 barR = kron(eye(T),R);
 
 for t = 1:optTime   
-    [Mean,Cov,Cov2] = EMexp(C,scale,R,d,Y);
-    [C,scale,d] = EMmaxNoR(Mean,Cov,Cov2,Y);
+    [Mean,Cov,Cov2] = EMexp(C,scale,R,d,baryTrain,p,q,T,TrainNum);
+    [C,scale,d] = EMmaxNoR(Mean,Cov,Cov2,YTrain,p,T);
     
     % calculate loglikelihood
     bard = kron(ones(T,1),d);
@@ -36,17 +65,10 @@ for t = 1:optTime
         tempK = [];
         for j = 1:T
             v = [];
-            if i == j
-                for k = 1:p
-                    v = [v;(1-10^(-3))*exp(-(i-j)^2/2/scale(k)^2)+10^(-3)];
-                end
-                tempK = [tempK,diag(v)];
-            else
-                for k = 1:p
-                    v = [v;(1-10^(-3))*exp(-(i-j)^2/2/scale(k)^2)];
-                end
-                tempK = [tempK,diag(v)];
+            for k = 1:p
+                v = [v;kernelEva(i,j,scale(k))];
             end
+            tempK = [tempK,diag(v)];
         end
         barK = [barK;tempK];
     end
@@ -59,7 +81,7 @@ end
 % get important modeling statistics to save repeated computations
 [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T);
 
-Ytest = dat(1);
+Ytest = dat(55);
 Ytest = Ytest.spikes;
 T1 = size(Ytest,2);
 Ybar = [];
@@ -77,14 +99,14 @@ Ytest = Ybar;
 figure
 subplot(1,6,1);
 hold on 
-scatter(1:T,Y(1,:),'DisplayName','real data');
+scatter(1:T,Ytest(1,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
 Num = 100;
 esty = [];
 for it = 1:Num + 1
-    esty(it) = predictGP((it-1)*T/Num,1,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+    esty(it) = predictGP((it-1)*T/Num,1,Ytest,barC,Bjc,scale,Sigma,bard,p,q,T,d);
 end
 hold on
 plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
@@ -93,14 +115,14 @@ ylabel('Spike')
 
 subplot(1,6,2);
 hold on 
-scatter(1:T,Y(2,:),'DisplayName','real data');
+scatter(1:T,Ytest(2,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
 Num = 100;
 esty = [];
 for it = 1:Num + 1
-    esty(it) = predictGP((it-1)*T/Num,2,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+    esty(it) = predictGP((it-1)*T/Num,2,Ytest,barC,Bjc,scale,Sigma,bard,p,q,T,d);
 end
 hold on
 plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
@@ -109,14 +131,14 @@ ylabel('Spike')
 
 subplot(1,6,3);
 hold on 
-scatter(1:T,Y(3,:),'DisplayName','real data');
+scatter(1:T,Ytest(3,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
 Num = 100;
 esty = [];
 for it = 1:Num + 1
-    esty(it) = predictGP((it-1)*T/Num,3,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+    esty(it) = predictGP((it-1)*T/Num,3,Ytest,barC,Bjc,scale,Sigma,bard,p,q,T,d);
 end
 hold on
 plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
@@ -125,14 +147,14 @@ ylabel('Spike')
 
 subplot(1,6,4);
 hold on 
-scatter(1:T,Y(4,:),'DisplayName','real data');
+scatter(1:T,Ytest(4,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
 Num = 100;
 esty = [];
 for it = 1:Num + 1
-    esty(it) = predictGP((it-1)*T/Num,4,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+    esty(it) = predictGP((it-1)*T/Num,4,Ytest,barC,Bjc,scale,Sigma,bard,p,q,T,d);
 end
 hold on
 plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
@@ -141,14 +163,14 @@ ylabel('Spike')
 
 subplot(1,6,5);
 hold on 
-scatter(1:T,Y(5,:),'DisplayName','real data');
+scatter(1:T,Ytest(5,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
 Num = 100;
 esty = [];
 for it = 1:Num + 1
-    esty(it) = predictGP((it-1)*T/Num,5,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+    esty(it) = predictGP((it-1)*T/Num,5,Ytest,barC,Bjc,scale,Sigma,bard,p,q,T,d);
 end
 hold on
 plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
@@ -157,14 +179,14 @@ ylabel('Spike')
 
 subplot(1,6,6);
 hold on 
-scatter(1:T,Y(6,:),'DisplayName','real data');
+scatter(1:T,Ytest(6,:),'DisplayName','real data');
 %hold on
 %plot(Y(1,:));
 legend('real data')
 Num = 100;
 esty = [];
 for it = 1:Num + 1
-    esty(it) = predictGP((it-1)*T/Num,6,Y,barC,Bjc,scale,Sigma,bard,p,q,T,d);
+    esty(it) = predictGP((it-1)*T/Num,6,Ytest,barC,Bjc,scale,Sigma,bard,p,q,T,d);
 end
 hold on
 plot(0:T/Num:T,esty,'DisplayName','GP-approx.')
