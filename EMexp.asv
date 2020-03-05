@@ -1,5 +1,4 @@
 function [Mean,Cov,Cov2] = EMexp(C,scale,R,d,baryTrain,p,q,T,TrainNum)
-
 barC = kron(eye(T),C);
 barR = kron(eye(T),R);
 bard = kron(ones(T,1),d);
