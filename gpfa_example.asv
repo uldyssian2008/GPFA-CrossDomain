@@ -93,7 +93,7 @@ end
 
 preError = 0;
 for ii = 1:TestNum
-    Ytest = dat(TrainNum + ii);
+    Ytest = dat(TrainNum + i);
     Ytest = Ytest.spikes;
     T1 = size(Ytest,2);
     Ybar = [];

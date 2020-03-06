@@ -35,6 +35,13 @@ for d = 1:TestNum
     end
     YTest{d} = Ybar;
 end
+for d = 1:TrainNum
+    YTrain{d} = sqrt(YTrain{d});
+end
+for d = 1:TestNum
+    YTest{d} = sqrt(YTest{d});
+end
+
 T = T/binwidth;
 
 baryTrain = [];
@@ -49,7 +56,7 @@ end
 rng(0,'twister'); % For reproducibility
 
 % optimize hyperparameters
-optTime = 200; % number of EM iteration
+optTime = 50; % number of EM iteration
 C = randn(q,p); scale = abs(randn(p,1)) + 10^(-1); R = diag(np^2 * ones(q,1)); d = randn(q,1); % parameter initialization
 barR = kron(eye(T),R);
 
@@ -73,9 +80,9 @@ for t = 1:optTime
         barK = [barK;tempK];
     end
     %covK = barC * barK * barC' + barR;
-    covK = barC * barK * barC' + barR + np^2 * eye(q*T);
-    loglikelihood = -1/2 * (bary - bard)' * covK^(-1) * (bary - bard) - 1/2 * (q * T * log(2*pi) + log(det(covK)));
-    disp(['Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ';']);
+    %covK = barC * barK * barC' + barR + np^2 * eye(q*T);
+    %loglikelihood = -1/2 * (bary - bard)' * covK^(-1) * (bary - bard) - 1/2 * (q * T * log(2*pi) + log(det(covK)));
+    %disp(['Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ';']);
 end
 
 % get important modeling statistics to save repeated computations
