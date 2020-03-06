@@ -1,4 +1,4 @@
-function [C,scale,d,R] = EMmax(Mean,Cov,Cov2,YTrain,p,T)
+function [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov2,Cov3,YTrain,p,T)
 
 TrainNum = size(YTrain,2);
 Z1 = 0;
@@ -28,10 +28,18 @@ R = 1 / T / TrainNum * diag(diag(Z3));
 
 
 
-% gradient ascent on scale
-scaleExp = zeros(p,1);
-OptIter = 100;
-lr = 10^(-4);
+% optimization of kernel width
+
+Covar = 0;
+for i = 1:TrainNum
+    Covar = Covar + Cov3{i};
+end
+
+scale = abs(randn(p,1)) + 10^(-1);
+fun = @(x) trace(kcomp(x) \ Covar) + TrainNum * log(det(kcomp(x)));
+scale = patternsearch(fun,x0,[],[],[],[],zeros(1,p),[]);
+
+
 for t = 1:OptIter
     for i = 1:p
         Ki = [];
@@ -56,5 +64,3 @@ for t = 1:OptIter
 end
 scale = exp(scaleExp);
 disp([' kernel width = ' num2str(scale') ';']);
-
-
