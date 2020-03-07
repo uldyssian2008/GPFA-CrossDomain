@@ -1,4 +1,4 @@
-function [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov2,Cov3,YTrain,p,T)
+function [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov2,Cov3,YTrain,p,T,scale)
 
 TrainNum = size(YTrain,2);
 Z1 = 0;
@@ -35,32 +35,19 @@ for i = 1:TrainNum
     Covar = Covar + Cov3{i};
 end
 
-scale = abs(randn(p,1)) + 10^(-1);
-fun = @(x) trace(kcomp(x) \ Covar) + TrainNum * log(det(kcomp(x)));
-scale = patternsearch(fun,x0,[],[],[],[],zeros(1,p),[]);
-
-
-for t = 1:OptIter
-    for i = 1:p
-        Ki = [];
-        Der = 0;
-        for l1 = 1:T
-            for l2 = 1:T
-                Ki(l1,l2) = kernelEva(l1,l2,exp(scaleExp(i)));
-            end
-        end
-        Ki2 = [];
-        for l1 = 1:T
-            for l2 = 1:T
-                Ki2(l1,l2) = kernelDer(l1,l2,exp(scaleExp(i))) * exp(scaleExp(i)); % change of variable: scale = exp(scaleExp)
-            end
-        end 
-        for trial = 1:TrainNum
-            Ki1 = 1/2 * (-Ki^(-1) + -Ki^(-1) * Cov2{i,trial} * Ki^(-1));
-            Der = Der + trace(Ki1' * Ki2);
-        end
-        scaleExp(i) = scaleExp(i) + lr * Der;
+OptNum = 10;
+optV = -1000000000;
+scaleInit = scale;
+fun = @(x) log(exp(trace(kcomp(x,p,T) \ Covar) * det(kcomp(x,p,T))^TrainNum ));
+for i = 1:OptNum
+    if i ~= 1
+        scaleInit = rand()abs(randn(p,1)) + 10^(-1);
+    end
+    [scaleTemp,fval] = patternsearch(fun,scaleInit,[],[],[],[],zeros(1,p),[]);
+    if fval < optV
+        optV = fval;
+        scale = scaleTemp;
     end
 end
-scale = exp(scaleExp);
+
 disp([' kernel width = ' num2str(scale') ';']);
