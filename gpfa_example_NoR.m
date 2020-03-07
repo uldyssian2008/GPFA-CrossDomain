@@ -1,6 +1,10 @@
 %%%%%%%%%%%% GPFA Implementation %%%%%%%%%%%%%%%
 
+rng(0,'twister'); % For reproducibility
+
 %%% Caution: change kernelEva & kernelDer simultaneously %%%
+
+%% Set up
 load('mat_sample/sample_dat');
 dataNum = size(dat,2);
 TrainNum = 30;
@@ -9,7 +13,6 @@ Y = dat(1:TrainNum);
 Ytes = dat(TrainNum + 1:end);
 T = size(Y(1).spikes,2);
 q = size(Y(1).spikes,1);
-
 % latent dimension
 p = 10;
 % noise power
@@ -41,9 +44,7 @@ end
 for d = 1:TestNum
     YTest{d} = sqrt(YTest{d});
 end
-
 T = T/binwidth;
-
 baryTrain = [];
 for l = 1:TrainNum
     baryTrain = [baryTrain,reshape(YTrain{l},[q*T,1])];
@@ -53,8 +54,53 @@ for l = 1:TestNum
     baryTest = [baryTest,reshape(YTest{l},[q*T,1])];
 end
 
-rng(0,'twister'); % For reproducibility
-
+%% sample from GP/Test (for Testing Purpose only)
+samNum = 391;
+TrialNum = 10;
+T = 40;
+q = 4;
+p = 2;
+SigmaT1 = zeros(samNum,samNum);
+SigmaT2 = zeros(samNum,samNum);
+SamScale1 = 3;
+SamScale2 = 3;
+C = randn(q,p);
+for i = 1:samNum
+    for j = 1:samNum
+        SigmaT1(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale1);
+    end
+end
+for i = 1:samNum
+    for j = 1:samNum
+        SigmaT2(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale2);
+    end
+end  
+X1 = mvnrnd(zeros(samNum,1)',SigmaT1,TrialNum);
+X2 = mvnrnd(zeros(samNum,1)',SigmaT2,TrialNum);
+YGPtest = C*[X1(1,:);X2(1,:)];
+figure
+plot(1:0.1:40,YGPtest(1,:));
+hold on
+plot(1:0.1:40,YGPtest(2,:));
+hold on
+plot(1:0.1:40,YGPtest(3,:));
+hold on
+plot(1:0.1:40,YGPtest(4,:));
+YTrain = {};
+for l = 1:TrialNum
+    Z = [];
+    for i = 1:40
+        Z = [Z,C*[X1(l,10 * i -9);X2(l,10 * i -9)]];
+    end
+    YTrain{l} = Z;
+end
+TrainNum = TrialNum;
+baryTrain = [];
+for l = 1:TrainNum
+    baryTrain = [baryTrain,reshape(YTrain{l},[q*T,1])];
+end    
+    
+%% Train
 % optimize hyperparameters
 optTime = 50; % number of EM iteration
 C = randn(q,p); scale = abs(randn(p,1)) + 10^(-1); R = diag(np^2 * ones(q,1)); d = randn(q,1); % parameter initialization
@@ -84,6 +130,9 @@ for t = 1:optTime
     %loglikelihood = -1/2 * (bary - bard)' * covK^(-1) * (bary - bard) - 1/2 * (q * T * log(2*pi) + log(det(covK)));
     %disp(['Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ';']);
 end
+
+
+%% Test
 
 % get important modeling statistics to save repeated computations
 [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T);
