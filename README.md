@@ -1,4 +1,4 @@
 # GPFA-CrossDomain
 VANILLA GPFA ^^
 
-run gpfaExample.m
+run gpfa_example.m
