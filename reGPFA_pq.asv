@@ -4,65 +4,21 @@ rng(0,'twister'); % For reproducibility
 
 %%% Caution: change kernelEva & kernelDer simultaneously %%%
 
-%% Set up
-
-load('mat_sample/sample_dat');
-dataNum = size(dat,2);
-TrainNum = 30;
-TestNum = dataNum - TrainNum;
-Y = dat(1:TrainNum);
-Ytes = dat(TrainNum + 1:end);
-T = size(Y(1).spikes,2);
-q = size(Y(1).spikes,1);
-
-% latent dimension
-p = 10;
-% noise power
-np = 0.1; 
-% bin spike coumt
-% Train set/Test set
-YTrain = {};
-YTest = {};
-binwidth = 10;
-for d = 1:TrainNum
-    Ybar = [];
-    for i = 1:T/binwidth
-        z = sum(Y(d).spikes(:,(i-1) * binwidth + 1:i * binwidth ),2);
-        Ybar = [Ybar,z];
-    end
-    YTrain{d} = Ybar;
-end
-for d = 1:TestNum
-    Ybar = [];
-    for i = 1:T/binwidth
-        z = sum(Ytes(d).spikes(:,(i-1) * binwidth + 1:i * binwidth ),2);
-        Ybar = [Ybar,z];
-    end
-    YTest{d} = Ybar;
-end
-for d = 1:TrainNum
-    YTrain{d} = sqrt(YTrain{d});
-end
-for d = 1:TestNum
-    YTest{d} = sqrt(YTest{d});
-end
-T = T/binwidth;
-baryTrain = [];
-for l = 1:TrainNum
-    baryTrain = [baryTrain,reshape(YTrain{l},[q*T,1])];
-end
-baryTest = [];
-for l = 1:TestNum
-    baryTest = [baryTest,reshape(YTest{l},[q*T,1])];
-end
-
 %% sample from GP/Test (for Testing Purpose only)
 
 samNum = 391;
 TrialNum = 10;
 T = 40;
-q = 4;
-p = 2;
+
+qmax = 50;
+pmax = 20;
+qmin = 10;
+pmin = 3;
+
+ErrorM = zeros(qmax,pmax);
+
+for q = qmin:qmax
+    for p = pmin:pmax
 np = 0.1; 
 SigmaT = {};
 SamScale = ones(p,1);
