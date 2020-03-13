@@ -1,0 +1,179 @@
+%%%%%%%%%%%% GPFA Implementation %%%%%%%%%%%%%%%
+
+rng(0,'twister'); % For reproducibility
+
+%%% Caution: change kernelEva & kernelDer simultaneously %%%
+
+%% sample from GP/Test (for Testing Purpose only)
+
+samNum = 391;
+TrialNum = 10;
+T = 40;
+
+qmax = 50;
+pmax = 20;
+qmin = 10;
+pmin = 3;
+
+ErrorM = zeros(pmax,qmax);
+
+for q = qmin:qmax
+    for p = pmin: min(q,pmax)
+        np = 0.1; 
+        SigmaT = {};
+        SamScale = ones(p,1);
+        for tt = 1:p
+            for i = 1:samNum
+                for j = 1:samNum
+                    SigmaT{tt}(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale(tt));
+                end
+            end
+        end
+        %SigmaT1 = zeros(samNum,samNum);
+        %SigmaT2 = zeros(samNum,samNum);
+        %SamScale1 = .01;
+        %SamScale2 = 3;
+        trueC = randn(q,p);
+        % for i = 1:samNum
+        %     for j = 1:samNum
+        %         SigmaT1(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale1);
+        %     end
+        % end
+        % for i = 1:samNum
+        %     for j = 1:samNum
+        %         SigmaT2(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale2);
+        %     end
+        % end  
+        X = {};
+        for i = 1:p
+            X{i} = mvnrnd(zeros(samNum,1)',SigmaT{i} + 0.01^2 * eye(samNum),TrialNum);
+        end
+        % X1 = mvnrnd(zeros(samNum,1)',SigmaT1 + 0.01^2 * eye(samNum),TrialNum);
+        % X2 = mvnrnd(zeros(samNum,1)',SigmaT2 + 0.01^2 * eye(samNum),TrialNum);
+        YTrain = {};
+        for l = 1:TrialNum
+            Z = [];
+            for i = 1:40
+                ZP = [];
+                for kk = 1:p
+                    ZP = [ZP;X{kk}(l,10 * i -9)];
+                end
+                Z = [Z,trueC * ZP];
+            end
+            YTrain{l} = Z;
+        end
+        TrainNum = TrialNum;
+        baryTrain = [];
+        for l = 1:TrainNum
+            baryTrain = [baryTrain,reshape(YTrain{l},[q*T,1])];
+        end
+        YTest = {};
+        XTest = [];
+        testNum = 4;
+        X = {};
+        for i = 1:p
+            X{i} = mvnrnd(zeros(samNum,1)',SigmaT{i} + 0.01^2 * eye(samNum),testNum);
+        end
+        for l = 1:testNum
+            Z = [];
+            for i = 1:40
+                ZP = [];
+                for kk = 1:p
+                    ZP = [ZP;X{kk}(l,10 * i -9)];
+                end
+                Z = [Z,trueC * ZP];
+            end
+            YTest{l} = Z;
+        end
+
+
+        for l = 1:testNum
+            Z = [];
+            for i = 1:40
+                ZP = [];
+                for kk = 1:p
+                    ZP = [ZP;X{kk}(l,10 * i -9)];
+                end
+                Z = [Z,ZP];
+            end
+            XTest(:,l) = reshape(Z,[p*T,1]);
+        end
+
+        Ytrue = {};
+        for l = 1:testNum
+            Z = [];
+            for i = 1:samNum
+                ZP = [];
+                for kk = 1:p
+                    ZP = [ZP;X{kk}(l,i)];
+                end
+                Z = [Z,trueC * ZP];
+            end
+            Ytrue{l} = Z;
+        end
+
+        %% Train
+
+        % optimize hyperparameters 
+        % very sensitive to initialization!!!
+        OptNum = 20; % number of reinitialization
+        EMnum = 5; % number of EM iteration
+        bestEv = -1000000000; % highest loglikelihood found
+        scaleOPt = 0; Copt = 0; Ropt = 0; dopt = 0; % best scale found so far
+        for tt = 1:OptNum
+            C = 10 * rand * randn(q,p); scale =5 * rand * abs(randn(p,1)) + 10^(-1); R = diag(np^2 * ones(q,1)); d = 10 * rand * randn(q,1); % parameter initialization
+            barR = kron(eye(T),R);
+            for t = 1:EMnum   
+                [Mean,Cov,Cov2,Cov3] = EMexpDirect(C,scale,R,d,baryTrain,p,q,T,TrainNum);
+                [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov2,Cov3,YTrain,p,T,scale);
+                % calculate loglikelihood
+                bard = kron(ones(T,1),d);
+                barC = kron(eye(T),C);
+                barK = [];
+                for i = 1:T
+                    tempK = [];
+                    for j = 1:T
+                        v = [];
+                        for k = 1:p
+                            v = [v;kernelEva(i,j,scale(k))];
+                        end
+                        tempK = [tempK,diag(v)];
+                    end
+                    barK = [barK;tempK];
+                end
+                covK = barC * barK * barC' + barR;
+                %covK = barC * barK * barC' + np^2 * eye(q*T);
+                loglikelihood = 0;
+                for i = 1:TrainNum
+                    loglikelihood = loglikelihood -1/2 * (baryTrain(:,i) - bard)' * covK^(-1) * (baryTrain(:,i) - bard) - 1/2 * (q * T * log(2*pi) + log(det(covK)));
+                end
+                if loglikelihood > bestEv 
+                    bestEv = loglikelihood;
+                    scaleOpt = scale;
+                    Copt = C;
+                    Ropt = R;
+                    dopt = d;
+                end
+                disp(['EM Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ', kernel width = ' num2str(scale') ';']);
+            end
+            disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+            disp(['Outer Iteration ' num2str(tt) ': best logLikelihood = ' num2str(bestEv) ', best kernel width = ' num2str(scaleOpt') ';']);
+            disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+        end
+
+        %% Latent recovery error
+
+        baryTest = [];
+        for l = 1:testNum
+            baryTest = [baryTest,reshape(YTest{l},[q*T,1])];
+        end
+        latentX = [];
+        for i = 1:testNum
+            latentX = [latentX,latentEst(barK,barC,barR,baryTest(:,i),bard)];
+        end
+        ErrorM(p,q) = norm(latentX - XTest);
+    end
+end
+
+
+

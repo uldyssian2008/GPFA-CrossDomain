@@ -63,37 +63,46 @@ TrialNum = 10;
 T = 40;
 q = 4;
 p = 2;
-SigmaT1 = zeros(samNum,samNum);
-SigmaT2 = zeros(samNum,samNum);
-SamScale1 = 3;
-SamScale2 = 3;
-C = randn(q,p);
-for i = 1:samNum
-    for j = 1:samNum
-        SigmaT1(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale1);
+np = 0.1; 
+SigmaT = {};
+SamScale = ones(p,1);
+for tt = 1:p
+    for i = 1:samNum
+        for j = 1:samNum
+            SigmaT{tt}(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale(tt));
+        end
     end
 end
-for i = 1:samNum
-    for j = 1:samNum
-        SigmaT2(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale2);
-    end
-end  
-X1 = mvnrnd(zeros(samNum,1)',SigmaT1 + 0.01^2 * eye(samNum),TrialNum);
-X2 = mvnrnd(zeros(samNum,1)',SigmaT2 + 0.01^2 * eye(samNum),TrialNum);
-YGPtest = C*[X1(1,:);X2(1,:)];
-figure
-plot(1:0.1:40,YGPtest(1,:));
-hold on
-plot(1:0.1:40,YGPtest(2,:));
-hold on
-plot(1:0.1:40,YGPtest(3,:));
-hold on
-plot(1:0.1:40,YGPtest(4,:));
+%SigmaT1 = zeros(samNum,samNum);
+%SigmaT2 = zeros(samNum,samNum);
+%SamScale1 = .01;
+%SamScale2 = 3;
+trueC = randn(q,p);
+% for i = 1:samNum
+%     for j = 1:samNum
+%         SigmaT1(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale1);
+%     end
+% end
+% for i = 1:samNum
+%     for j = 1:samNum
+%         SigmaT2(i,j) = kernelEva(0.1*i + 0.9,0.1*j + 0.9,SamScale2);
+%     end
+% end  
+X = {};
+for i = 1:p
+    X{i} = mvnrnd(zeros(samNum,1)',SigmaT{i} + 0.01^2 * eye(samNum),TrialNum);
+end
+% X1 = mvnrnd(zeros(samNum,1)',SigmaT1 + 0.01^2 * eye(samNum),TrialNum);
+% X2 = mvnrnd(zeros(samNum,1)',SigmaT2 + 0.01^2 * eye(samNum),TrialNum);
 YTrain = {};
 for l = 1:TrialNum
     Z = [];
     for i = 1:40
-        Z = [Z,C*[X1(l,10 * i -9);X2(l,10 * i -9)]];
+        ZP = [];
+        for kk = 1:p
+            ZP = [ZP;X{kk}(l,10 * i -9)];
+        end
+        Z = [Z,trueC * ZP];
     end
     YTrain{l} = Z;
 end
@@ -101,23 +110,62 @@ TrainNum = TrialNum;
 baryTrain = [];
 for l = 1:TrainNum
     baryTrain = [baryTrain,reshape(YTrain{l},[q*T,1])];
-end    
+end
+YTest = {};
+XTest = [];
+testNum = 4;
+X = {};
+for i = 1:p
+    X{i} = mvnrnd(zeros(samNum,1)',SigmaT{i} + 0.01^2 * eye(samNum),testNum);
+end
+for l = 1:testNum
+    Z = [];
+    for i = 1:40
+        ZP = [];
+        for kk = 1:p
+            ZP = [ZP;X{kk}(l,10 * i -9)];
+        end
+        Z = [Z,trueC * ZP];
+    end
+    YTest{l} = Z;
+end
+
+
+for l = 1:testNum
+    Z = [];
+    for i = 1:40
+        ZP = [];
+        for kk = 1:p
+            ZP = [ZP;X{kk}(l,10 * i -9)];
+        end
+        Z = [Z,ZP];
+    end
+    XTest(:,l) = reshape(Z,[p*T,1]);
+end
+
+Ytrue = {};
+for l = 1:testNum
+    Z = [];
+    for i = 1:samNum
+        Z = [Z,trueC*[X1(l,i);X2(l,i)]];
+    end
+    Ytrue{l} = Z;
+end
 
 %% Train
 
 % optimize hyperparameters 
 % very sensitive to initialization!!!
-OptNum = 10; % number of reinitialization
-EMnum = 10; % number of EM iteration
+OptNum = 100; % number of reinitialization
+EMnum = 5; % number of EM iteration
 bestEv = -1000000000; % highest loglikelihood found
-scaleOPt = 0; Copt = 0; Ropt = 0;% best scale found so far
+scaleOPt = 0; Copt = 0; Ropt = 0; dopt = 0; % best scale found so far
 for tt = 1:OptNum
     C = 10 * rand * randn(q,p); scale =5 * rand * abs(randn(p,1)) + 10^(-1); R = diag(np^2 * ones(q,1)); d = 10 * rand * randn(q,1); % parameter initialization
     barR = kron(eye(T),R);
     for t = 1:EMnum   
         [Mean,Cov,Cov2,Cov3] = EMexpDirect(C,scale,R,d,baryTrain,p,q,T,TrainNum);
         [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov2,Cov3,YTrain,p,T,scale);
-
         % calculate loglikelihood
         bard = kron(ones(T,1),d);
         barC = kron(eye(T),C);
@@ -142,12 +190,84 @@ for tt = 1:OptNum
         if loglikelihood > bestEv 
             bestEv = loglikelihood;
             scaleOpt = scale;
+            Copt = C;
+            Ropt = R;
+            dopt = d;
         end
-        disp(['Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ';']);
+        disp(['EM Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ', kernel width = ' num2str(scale') ';']);
     end
+    disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+    disp(['Outer Iteration ' num2str(tt) ': best logLikelihood = ' num2str(bestEv) ', best kernel width = ' num2str(scaleOpt') ';']);
+    disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
 end
-%% Test
 
+%%  Test Plot 
+C = Copt;
+R = Ropt;
+d = dopt;
+scale = scaleOpt;
+% get important modeling statistics to save repeated computations
+[barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T);
+
+%% Leave one out
+
+figure
+subplot(1,testNum,1);
+plot(1:0.1:40,Ytrue{1}(1,:),'DisplayName','True trajectory');
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,1,YTest{1},barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
+hold on
+plot(0:T/Num:T,esty,'DisplayName','GP-prediction');
+
+subplot(1,testNum,2);
+plot(1:0.1:40,Ytrue{2}(1,:),'DisplayName','True trajectory');
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,1,YTest{2},barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
+hold on
+plot(0:T/Num:T,esty,'DisplayName','GP-prediction');
+
+subplot(1,testNum,3);
+plot(1:0.1:40,Ytrue{3}(1,:),'DisplayName','True trajectory');
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,1,YTest{3},barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
+hold on
+plot(0:T/Num:T,esty,'DisplayName','GP-prediction');
+
+subplot(1,testNum,4);
+plot(1:0.1:40,Ytrue{4}(1,:),'DisplayName','True trajectory');
+Num = 100;
+esty = [];
+for it = 1:Num + 1
+    esty(it) = predictGP((it-1)*T/Num,1,YTest{4},barC,Bjc,scale,Sigma,bard,p,q,T,d);
+end
+hold on
+plot(0:T/Num:T,esty,'DisplayName','GP-prediction.');
+
+%% Latent recovery error
+
+baryTest = [];
+for l = 1:testNum
+    baryTest = [baryTest,reshape(YTest{l},[q*T,1])];
+end
+latentX = [];
+for i = 1:testNum
+    latentX = [latentX,latentEst(barK,barC,barR,baryTest(:,i),bard)];
+end
+
+%% Test
+C = Copt;
+R = Ropt;
+d = dopt;
+scale = scaleOpt;
 % get important modeling statistics to save repeated computations
 [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T);
 
