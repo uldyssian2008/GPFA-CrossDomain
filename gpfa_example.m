@@ -160,7 +160,7 @@ end
 
 % optimize hyperparameters 
 % very sensitive to initialization!!!
-OptNum = 100; % number of reinitialization
+OptNum = 20; % number of reinitialization
 EMnum = 5; % number of EM iteration
 bestEv = -1000000000; % highest loglikelihood found
 scaleOPt = 0; Copt = 0; Ropt = 0; dopt = 0; % best scale found so far

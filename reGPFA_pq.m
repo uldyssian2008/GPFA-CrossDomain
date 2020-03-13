@@ -10,15 +10,18 @@ samNum = 391;
 TrialNum = 10;
 T = 40;
 
-qmax = 50;
-pmax = 20;
-qmin = 10;
+qmax = 25;
+pmax = 10;
+qmin = 15;
 pmin = 3;
+count = 0;
 
 ErrorM = zeros(pmax,qmax);
 
 for q = qmin:qmax
     for p = pmin: min(q,pmax)
+        t1 = cputime;
+        count = count + 1;
         np = 0.1; 
         SigmaT = {};
         SamScale = ones(p,1);
@@ -172,6 +175,8 @@ for q = qmin:qmax
             latentX = [latentX,latentEst(barK,barC,barR,baryTest(:,i),bard)];
         end
         ErrorM(p,q) = norm(latentX - XTest);
+        t2 = cputime - t1;
+        disp([' PQ iteration (p,q) = ' num2str([p,q]) ' takes time = ' num2str(t2)]);
     end
 end
 
