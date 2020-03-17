@@ -10,9 +10,9 @@ samNum = 391;
 TrialNum = 10;
 T = 40;
 
-qmax = 25;
+qmax = 10;
 pmax = 10;
-qmin = 15;
+qmin = 5;
 pmin = 3;
 count = 0;
 
@@ -176,7 +176,9 @@ for q = qmin:qmax
         end
         ErrorM(p,q) = norm(latentX - XTest);
         t2 = cputime - t1;
+        disp('%%%%%%%%%%%%%%%%%%%%%QQQQQQQQQQQ%%%%%%%%%%%%%%%%%%%%%%%%%%%');
         disp([' PQ iteration (p,q) = ' num2str([p,q]) ' takes time = ' num2str(t2)]);
+        disp('%%%%%%%%%%%%%%%%%%%%QQQQQQQQQQQ%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
     end
 end
 
