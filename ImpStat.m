@@ -1,4 +1,4 @@
-function [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T)
+function [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,T,TimeTable)
 
 p = size(C,2);
 q = size(C,1);
@@ -11,7 +11,7 @@ for i = 1:T
     for j = 1:T
         v = [];
         for k = 1:p
-            v = [v;kernelEva(i,j,scale(k))];
+            v = [v;kernelEva(TimeTable(i),TimeTable(j),scale(k))];
         end
         tempK = [tempK,diag(v)];
     end
