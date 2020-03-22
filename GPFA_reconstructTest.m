@@ -135,7 +135,7 @@ for tt = 1:OptNum
         end
         if loglikelihood > bestEv 
             bestEv = loglikelihood;
-            scaleOpt = scale;
+            scaleOPt = scale;
             Copt = C;
             Ropt = R;
             dopt = d;
@@ -143,7 +143,7 @@ for tt = 1:OptNum
         disp(['Inner EM Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ', kernel width = ' num2str(scale') ';']);
     end
     disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
-    disp(['Outer EM Iteration ' num2str(tt) ': best logLikelihood = ' num2str(bestEv) ', best kernel width = ' num2str(scaleOpt') ';']);
+    disp(['Outer EM Iteration ' num2str(tt) ': best logLikelihood = ' num2str(bestEv) ', best kernel width = ' num2str(scaleOPt') ';']);
     disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
 end
 
@@ -151,7 +151,7 @@ end
 C = Copt;
 R = Ropt;
 d = dopt;
-scale = scaleOpt;
+scale = scaleOPt;
 % get important modeling statistics to save repeated computations
 [barC,barR,bard,barK,Bj,Bjc,Sigma] = ImpStat(C,scale,R,d,sampleNum,TimeTable);
 

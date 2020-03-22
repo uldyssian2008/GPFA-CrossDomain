@@ -36,8 +36,8 @@ end
 OptNum = 10;
 optV = 1000000000;
 scaleInit = scale;
-fun = @(x) log(exp(trace(kcomp(x,p,T,TimeTable) \ Covar) * det(kcomp(x,p,T,TimeTable))^TrainNum ));
-%fun = @(x) trace(kcomp(x,p,T,TimeTable) \ Covar) + TrainNum * 2 * sum(log(diag(chol(kcomp(x,p,T,TimeTable))))) ;
+%fun = @(x) log(exp(trace(kcomp(x,p,T,TimeTable) \ Covar) * det(kcomp(x,p,T,TimeTable))^TrainNum ));
+fun = @(x) trace(kcomp(x,p,T,TimeTable) \ Covar) + TrainNum * 2 * sum(log(diag(chol(kcomp(x,p,T,TimeTable))))) ;
 for i = 1:OptNum
     if i ~= 1
         scaleInit = 5 * rand * (abs(randn(p,1))) + 10^(-1);

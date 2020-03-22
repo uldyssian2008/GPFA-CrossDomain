@@ -1,15 +1,15 @@
 %%%%%%%%%%%% GPFA Implementation %%%%%%%%%%%%%%%
 
-%rng(0,'twister'); % For reproducibility
+rng(0,'twister'); % For reproducibility
 
 %%% Caution: change kernelEva & kernelDer simultaneously %%%
 
 %% sample from GP/Test (for Testing Purpose only)
 
 t1 = cputime;
-totalNum = 100; % number of GP approximation points
-TrialNum = 30;
-sampleNum = 100; % number of sample
+totalNum = 50; % number of GP approximation points
+TrialNum = 10;
+sampleNum = 50; % number of sample
 gap = totalNum/sampleNum;
 TimeTable = zeros(sampleNum,1);
 for i = 1:sampleNum
@@ -17,7 +17,7 @@ for i = 1:sampleNum
 end
 
 
-q = 10;
+q = 20;
 p = 2;
 np = 0.1;
 
@@ -44,14 +44,14 @@ end
 %trueC = 5 * sprandn(q,p,0.2);
 trued = 5 * randn(q,1);
 
-X = {}; % X{i}(j,k):  i,j,k = index of trial, latent, time % whole latent whole process
-for i = 1:TrialNum
+
+X = {}; % X{i}(j,k):  i,j,k = index of trial, latent, time % whole latent process
+for i = 1:TestNum
     X{i} = [];
     for j = 1:p
         X{i} = [X{i};mvnrnd(zeros(totalNum,1)',SigmaT{j} + 0.01^2 * eye(totalNum),1);];
     end
 end
-
 
 XTrain = {}; % latent process at sample timesteps
 for i = 1:TrialNum
@@ -78,10 +78,9 @@ end
 
 %% Test Data Generation
 
-
-
-
 TestNum = 10;
+
+
 XTestW = {};
 for i = 1:TestNum
     XTestW{i} = [];
@@ -113,47 +112,51 @@ end
 TrainNum = TrialNum;
 % optimize hyperparameters 
 % very sensitive to initialization!!!
+OptNum = 10; % number of EM reinitialization
+EMnum = 15; % number of inner EM iteration
 bestEv = -1000000000; % highest loglikelihood found
-scaleOPt = GPScale; Copt = 0; Ropt = 0; dopt = 0; % best scale found so far
-C = 10 * rand * randn(q,p); R = diag(np^2 * ones(q,1)); d = 10 * rand * randn(q,1); % parameter initialization
-scale = scaleOPt;
-barR = kron(eye(sampleNum),R);
-
-[Mean,Cov,Cov2,Cov3] = EMexpDirect(C,scale,R,d,baryTrain,p,sampleNum,TrainNum,TimeTable);
-[C,d,R] = EMmaxDirectNOB(Mean,Cov,Cov3,YTrain,sampleNum);
-% calculate loglikelihood
-bard = kron(ones(sampleNum,1),d);
-barC = kron(eye(sampleNum),C);
-barK = [];
-for i = 1:sampleNum
-    tempK = [];
-    for j = 1:sampleNum
-        v = [];
-        for k = 1:p
-            v = [v;kernelEva(TimeTable(i),TimeTable(j),scale(k))];
+scaleOPt = 0; Copt = 0; Ropt = 0; dopt = 0; % best scale found so far
+for tt = 1:OptNum
+    C = 10 * rand * randn(q,p); scale = 5 * rand * abs(randn(p,1)) + 1; R = diag(np^2 * ones(q,1)); d = 10 * rand * randn(q,1); % parameter initialization
+    barR = kron(eye(sampleNum),R);
+    for t = 1:EMnum  
+        [Mean,Cov,Cov2,Cov3] = EMexpDirect(C,scale,R,d,baryTrain,p,sampleNum,TrainNum,TimeTable);
+        [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov3,YTrain,p,sampleNum,scale,TimeTable);
+        % calculate loglikelihood
+        bard = kron(ones(sampleNum,1),d);
+        barC = kron(eye(sampleNum),C);
+        barK = [];
+        for i = 1:sampleNum
+            tempK = [];
+            for j = 1:sampleNum
+                v = [];
+                for k = 1:p
+                    v = [v;kernelEva(TimeTable(i),TimeTable(j),scale(k))];
+                end
+                tempK = [tempK,diag(v)];
+            end
+            barK = [barK;tempK];
         end
-        tempK = [tempK,diag(v)];
+        covK = barC * barK * barC' + barR;
+        %covK = barC * barK * barC' + np^2 * eye(q*T);
+        loglikelihood = 0;
+        covK = covK + 0.001 * eye(q*sampleNum);
+        for i = 1:TrainNum
+            loglikelihood = loglikelihood -1/2 * (baryTrain(:,i) - bard)' * covK^(-1) * (baryTrain(:,i) - bard) - 1/2 * (q * sampleNum * log(2*pi) + 2 * sum(log(diag(chol(covK)))));  % cholesky to compute logdet          
+        end
+        if loglikelihood > bestEv 
+            bestEv = loglikelihood;
+            scaleOPt = scale;
+            Copt = C;
+            Ropt = R;
+            dopt = d;
+        end
+        disp(['Inner EM Iteration ' num2str(t) ': logLikelihood = ' num2str(loglikelihood) ', kernel width = ' num2str(scale') ';']);
     end
-    barK = [barK;tempK];
-end
-covK = barC * barK * barC' + barR;
-%covK = barC * barK * barC' + np^2 * eye(q*T);
-loglikelihood = 0;
-covK = covK + 0.001 * eye(q*sampleNum);
-for i = 1:TrainNum
-    loglikelihood = loglikelihood -1/2 * (baryTrain(:,i) - bard)' * covK^(-1) * (baryTrain(:,i) - bard) - 1/2 * (q * sampleNum * log(2*pi) + 2 * sum(log(diag(chol(covK)))));  % cholesky to compute logdet          
-end
-if loglikelihood > bestEv 
-    bestEv = loglikelihood;
-    scaleOPt = scaleOPt;
-    Copt = C;
-    Ropt = R;
-    dopt = d;
-end
-disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
-
-
-
+    disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+    disp(['Outer EM Iteration ' num2str(tt) ': best logLikelihood = ' num2str(bestEv) ', best kernel width = ' num2str(scaleOPt') ';']);
+    disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+end  
 %%  Model extraction 
 C = Copt;
 R = Ropt;
@@ -330,7 +333,7 @@ for i = 1:TrialNum
     end
     disp(['x principle angle = ',num2str(OptTheta)])
     Platentx{i} = [cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)] * Platentx{i};
-  %  CT{i} = CT{i}/[cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)];
+    CT{i} = CT{i}/[cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)];
 end
 
 Xerror = zeros(p,TrialNum); 
@@ -349,8 +352,8 @@ end
 
 
 Xerror = Xerror';
-stderror = std(Xerror);
-meanerror = mean(Xerror);
+stderror = std(Xerror,1);
+meanerror = mean(Xerror,1);
 t2 = cputime - t1;
 disp([' normalized X recover error = ' mat2str(meanerror) ' takes time = ' num2str(t2)]);
 
@@ -495,7 +498,7 @@ colorbar
 title('True neuron trajectory')
 
 subplot(4,5,17)
-ZZZZ = CT{1} * latentx{1} + dopt;
+ZZZZ = CT{1} * latentx{1};
 scatter3(ZZZZ(1,:),ZZZZ(2,:),ZZZZ(3,:),[],1:sampleNum);
 colorbar
 title('Estimated neuron trajectory')
@@ -526,5 +529,5 @@ title('Estimated neuron trajectory')
 % title('leave 4 out')
 % plot(1:sampleNum,esty,'DisplayName','GP-prediction');
 % legend
-sgtitle(['# Latent = ',num2str(p),', # Neuron = ',num2str(q), ', # Sample = ',num2str(sampleNum), ', # Trial = ',num2str(TrialNum),', Bandwidth = ',mat2str([GPScale(1),GPScale(2)]), ', Perfect Bandwidth'])
+sgtitle(['# Latent = ',num2str(p),', # Neuron = ',num2str(q), ', # Sample = ',num2str(sampleNum), ', # Trial = ',num2str(TrialNum),', Bandwidth = ',mat2str([GPScale(1),GPScale(2)]), ', Imperfect Bandwidth'])
 %sgtitle(['parameters (p,q,n,w_1,w_2) = (', num2str([p,q,sampleNum,GPScale(1),GPScale(2)]),')'])
