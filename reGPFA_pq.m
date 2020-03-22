@@ -10,9 +10,9 @@ samNum = 391;
 TrialNum = 10;
 T = 40;
 
-qmax = 25;
-pmax = 10;
-qmin = 15;
+qmax = 10;
+pmax = 3;
+qmin = 10;
 pmin = 3;
 count = 0;
 

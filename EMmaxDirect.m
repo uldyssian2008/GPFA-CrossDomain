@@ -1,4 +1,4 @@
-function [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov2,Cov3,YTrain,p,T,scale)
+function [C,scale,d,R] = EMmaxDirect(Mean,Cov,Cov3,YTrain,p,T,scale,TimeTable)
 
 TrainNum = size(YTrain,2);
 Z1 = 0;
@@ -20,8 +20,7 @@ d = ZZ(:,end);
 Z3 = 0;
 for l = 1:TrainNum
     for i = 1:T
-        Z3 = Z3 + (YTrain{l}(:,i) - d) * (YTrain{l}(:,i) - d)' - C * Mean{l}(:,i) * (YTrain{l}(:,i) - d)' - (YTrain{l}(:,i) - d) * Mean{l}(:,i)'*C' + C*Cov{i,l}*C';
-        %Z3 = Z3 + (Y(:,i) - d) * (Y(:,i) - d)' - (Y(:,i) - d) * Mean(:,i)'*C';
+        Z3 = Z3 + (YTrain{l}(:,i) - d) * (YTrain{l}(:,i) - d)' - (YTrain{l}(:,i) - d) * Mean{l}(:,i)'*C';
     end
 end
 R = 1 / T / TrainNum * diag(diag(Z3));
@@ -35,9 +34,10 @@ for i = 1:TrainNum
     Covar = Covar + Cov3{i};
 end
 OptNum = 10;
-optV = -1000000000;
+optV = 1000000000;
 scaleInit = scale;
-fun = @(x) log(exp(trace(kcomp(x,p,T) \ Covar) * det(kcomp(x,p,T))^TrainNum ));
+fun = @(x) log(exp(trace(kcomp(x,p,T,TimeTable) \ Covar) * det(kcomp(x,p,T,TimeTable))^TrainNum ));
+%fun = @(x) trace(kcomp(x,p,T,TimeTable) \ Covar) + TrainNum * 2 * sum(log(diag(chol(kcomp(x,p,T,TimeTable))))) ;
 for i = 1:OptNum
     if i ~= 1
         scaleInit = 5 * rand * (abs(randn(p,1))) + 10^(-1);
