@@ -271,7 +271,7 @@ for i = 1:TrialNum
 end
 
 
-% Rotation align
+% Rotation align x
 for i = 1:TrialNum
     OptNum = 10;
     optV = 1000000000;
@@ -285,10 +285,13 @@ for i = 1:TrialNum
             OptTheta = thetaTemp;
         end
     end
-    disp(OptTheta)
+    disp(['x angle = ',num2str(OptTheta)])
     latentx{i} = [cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)] * latentx{i};
     CT{i} = CT{i}/[cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)];
 end
+
+
+
 
 % principle latent processes
 Platentx = {};
@@ -306,10 +309,26 @@ S = [S;max(S) / min(S)];
 S2 = diag(S2);
 S2 = [S2;max(S2) / min(S2)];
 
-% laa = [la1;la2];
-% laa = reshape(laa,[p * sampleNum,1]);
-% Xbb = [XTrain{1}(1,:);XTrain{1}(2,:)];
-% Xbb = reshape(Xbb,[p * sampleNum,1]);
+
+% Rotation align principle x
+for i = 1:TrialNum
+    OptNum = 10;
+    optV = 1000000000;
+    OptTheta = 0;
+    fun = @(theta) norm([cos(theta),-sin(theta);sin(theta),cos(theta)] * Platentx{i} - TPlatentx{i});
+    for j = 1:OptNum
+        theta0 = 2 * pi * rand(1);
+        [thetaTemp,fval] = patternsearch(fun,theta0,[],[],[],[],0,2 * pi);
+        if fval < optV
+            optV = fval;
+            OptTheta = thetaTemp;
+        end
+    end
+    disp(['x principle angle = ',num2str(OptTheta)])
+    Platentx{i} = [cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)] * Platentx{i};
+    CT{i} = CT{i}/[cos(OptTheta),-sin(OptTheta);sin(OptTheta),cos(OptTheta)];
+end
+
 Xerror = zeros(p,TrialNum); 
 for i = 1:p
     for j = 1:TrialNum
@@ -358,7 +377,7 @@ disp([' normalized d recover error = ' mat2str(derror) ' takes time = ' num2str(
 Loo = zeros(q,TestNum);
 for i = 1:q
     for j= 1:TestNum
-        Loo(i,j) = norm(predictGP(i,YTest{j},Bj,Bjc,Sigma,bard,q,sampleNum) - YTest{j}(i,:)') / sqrt(sampleNum);
+        Loo(i,j) = norm(predictGP(i,YTest{j},Bj,Bjc,Sigma,bard,q,sampleNum) - YTest{j}(i,:)') / norm(YTest{j}(i,:));%sqrt(sampleNum);
     end
 end
 Loo = Loo';
